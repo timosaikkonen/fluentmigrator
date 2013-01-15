@@ -2,6 +2,7 @@ using System.Linq;
 using System.Reflection;
 using FluentMigrator.Expressions;
 using FluentMigrator.Runner;
+using FluentMigrator.Runner.Versioning;
 using FluentMigrator.VersionTableInfo;
 using Moq;
 using NUnit.Framework;
@@ -128,7 +129,7 @@ namespace FluentMigrator.Tests.Unit
                                                                                pair.Key == loader.VersionTableMetaData.ColumnName && pair.Value.Equals(1L))))))
                 .Verifiable();
 
-            loader.UpdateVersionInfo(1);
+            loader.UpdateVersionInfo(new VersionInfo { Version = 1 });
 
             processor.VerifyAll();
         }

@@ -18,12 +18,15 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using FluentMigrator.Expressions;
 using FluentMigrator.Infrastructure;
+using FluentMigrator.Model;
 using FluentMigrator.Runner;
 using FluentMigrator.Runner.Initialization;
 using FluentMigrator.Runner.Processors;
+using FluentMigrator.Runner.Versioning;
 using FluentMigrator.Tests.Integration.Migrations;
 using Moq;
 using NUnit.Framework;
@@ -44,6 +47,7 @@ namespace FluentMigrator.Tests.Unit
         private Mock<IRunnerContext> _runnerContextMock;
         private SortedList<long, IMigration> _migrationList;
         private TestVersionLoader _fakeVersionLoader;
+        private IAppliedVersions _appliedVersions;
         private int _applicationContext;
 
         [SetUp]
@@ -55,6 +59,8 @@ namespace FluentMigrator.Tests.Unit
             _processorMock = new Mock<IMigrationProcessor>(MockBehavior.Loose);
             _migrationLoaderMock = new Mock<IMigrationLoader>(MockBehavior.Loose);
             _profileLoaderMock = new Mock<IProfileLoader>(MockBehavior.Loose);
+            
+            _appliedVersions = new AppliedVersions();
 
             _announcer = new Mock<IAnnouncer>();
             _stopWatch = new Mock<IStopWatch>();
@@ -75,6 +81,7 @@ namespace FluentMigrator.Tests.Unit
             _runnerContextMock.SetupGet(x => x.ApplicationContext).Returns(_applicationContext);
 
             _migrationLoaderMock.SetupGet(x => x.Migrations).Returns(_migrationList);
+            _migrationLoaderMock.SetupGet(x => x.AppliedVersions).Returns(_appliedVersions);
 
             _runner = new MigrationRunner(Assembly.GetAssembly(typeof(MigrationRunnerTests)), _runnerContextMock.Object, _processorMock.Object)
                         {
@@ -98,10 +105,11 @@ namespace FluentMigrator.Tests.Unit
         {
             _fakeVersionLoader.Versions.Clear();
             _runner.MigrationLoader.Migrations.Clear();
-
+            
             foreach (var version in fakeVersions)
             {
-                _fakeVersionLoader.Versions.Add(version);
+                _fakeVersionLoader.Versions.Add(new VersionInfo() {Version = version});
+                _runner.MigrationLoader.AppliedVersions.AddAppliedMigration(new VersionInfo { Version = version });
                 _runner.MigrationLoader.Migrations.Add(version, new TestMigration());
             }
 
@@ -300,14 +308,14 @@ namespace FluentMigrator.Tests.Unit
 
             LoadVersionData(fakeMigration1,fakeMigration3);
 
-            _fakeVersionLoader.Versions.Add(fakeMigration2);
+            _fakeVersionLoader.Versions.Add(new VersionInfo { Version = fakeMigration2 });
             _fakeVersionLoader.LoadVersionInfo();
 
             _runner.RollbackToVersion(2011010101);
             
-            _fakeVersionLoader.Versions.ShouldContain(fakeMigration1);
-            _fakeVersionLoader.Versions.ShouldContain(fakeMigration2);
-            _fakeVersionLoader.Versions.ShouldNotContain(fakeMigration3);
+            _fakeVersionLoader.Versions.Select(v => v.Version).ShouldContain(fakeMigration1);
+			_fakeVersionLoader.Versions.Select(v => v.Version).ShouldContain(fakeMigration2);
+			_fakeVersionLoader.Versions.Select(v => v.Version).ShouldNotContain(fakeMigration3);
         }
 
         [Test]
@@ -325,9 +333,9 @@ namespace FluentMigrator.Tests.Unit
 
             _runner.RollbackToVersion(0);
 
-            _fakeVersionLoader.Versions.ShouldContain(fakeMigration1);
-            _fakeVersionLoader.Versions.ShouldContain(fakeMigration2);
-            _fakeVersionLoader.Versions.ShouldNotContain(fakeMigration3);
+			_fakeVersionLoader.Versions.Select(v => v.Version).ShouldContain(fakeMigration1);
+			_fakeVersionLoader.Versions.Select(v => v.Version).ShouldContain(fakeMigration2);
+			_fakeVersionLoader.Versions.Select(v => v.Version).ShouldNotContain(fakeMigration3);
         }
 
         [Test]
@@ -339,14 +347,14 @@ namespace FluentMigrator.Tests.Unit
 
             LoadVersionData(fakeMigration1, fakeMigration3);
 
-            _fakeVersionLoader.Versions.Add(fakeMigration2);
+            _fakeVersionLoader.Versions.Add(new VersionInfo { Version = fakeMigration2 });
             _fakeVersionLoader.LoadVersionInfo();
 
             _runner.Rollback(2);
 
-            _fakeVersionLoader.Versions.ShouldNotContain(fakeMigration1);
-            _fakeVersionLoader.Versions.ShouldContain(fakeMigration2);
-            _fakeVersionLoader.Versions.ShouldNotContain(fakeMigration3);
+			_fakeVersionLoader.Versions.Select(v => v.Version).ShouldNotContain(fakeMigration1);
+			_fakeVersionLoader.Versions.Select(v => v.Version).ShouldContain(fakeMigration2);
+			_fakeVersionLoader.Versions.Select(v => v.Version).ShouldNotContain(fakeMigration3);
 
             _fakeVersionLoader.DidRemoveVersionTableGetCalled.ShouldBeFalse();
         }
@@ -533,6 +541,8 @@ namespace FluentMigrator.Tests.Unit
             {
                 throw new NotImplementedException();
             }
+
+	        public IVersionMetadata VersionMetadata { get; set; }
         }
     }
 }

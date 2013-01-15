@@ -368,7 +368,7 @@ namespace FluentMigrator.Tests.Integration
                 var runner = new MigrationRunner(typeof(TestMigration).Assembly, runnerContext, processor);
 
                 //runner.Processor.CommitTransaction();
-                runner.VersionLoader.VersionInfo.ShouldNotBeNull();
+                runner.VersionLoader.AppliedVersions.ShouldNotBeNull();
             });
         }
 
@@ -381,11 +381,11 @@ namespace FluentMigrator.Tests.Integration
 
                 runner.MigrateUp(false);
 
-                runner.VersionLoader.VersionInfo.HasAppliedMigration(1).ShouldBeTrue();
-                runner.VersionLoader.VersionInfo.HasAppliedMigration(2).ShouldBeTrue();
-                runner.VersionLoader.VersionInfo.HasAppliedMigration(3).ShouldBeTrue();
-                runner.VersionLoader.VersionInfo.HasAppliedMigration(4).ShouldBeTrue();
-                runner.VersionLoader.VersionInfo.Latest().ShouldBe(4);
+                runner.VersionLoader.AppliedVersions.HasAppliedMigration(1).ShouldBeTrue();
+                runner.VersionLoader.AppliedVersions.HasAppliedMigration(2).ShouldBeTrue();
+                runner.VersionLoader.AppliedVersions.HasAppliedMigration(3).ShouldBeTrue();
+                runner.VersionLoader.AppliedVersions.HasAppliedMigration(4).ShouldBeTrue();
+                runner.VersionLoader.AppliedVersions.Latest().Version.ShouldBe(4);
 
                 runner.RollbackToVersion(0, false);
             });
@@ -401,7 +401,7 @@ namespace FluentMigrator.Tests.Integration
                 {
                     runner.MigrateUp(1, false);
 
-                    runner.VersionLoader.VersionInfo.HasAppliedMigration(1).ShouldBeTrue();
+                    runner.VersionLoader.AppliedVersions.HasAppliedMigration(1).ShouldBeTrue();
                     processor.TableExists(null, "Users").ShouldBeTrue();
                 }
                 finally
@@ -422,12 +422,12 @@ namespace FluentMigrator.Tests.Integration
 
                     runner.MigrateUp(1, false);
 
-                    runner.VersionLoader.VersionInfo.HasAppliedMigration(1).ShouldBeTrue();
+                    runner.VersionLoader.AppliedVersions.HasAppliedMigration(1).ShouldBeTrue();
                     processor.TableExists(null, "Users").ShouldBeTrue();
 
                     MigrationRunner testRunner = SetupMigrationRunner(processor);
                     testRunner.MigrateDown(0, false);
-                    testRunner.VersionLoader.VersionInfo.HasAppliedMigration(1).ShouldBeFalse();
+                    testRunner.VersionLoader.AppliedVersions.HasAppliedMigration(1).ShouldBeFalse();
                     processor.TableExists(null, "Users").ShouldBeFalse();
                 }, false, typeof(SqliteProcessor));
             }

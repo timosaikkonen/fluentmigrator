@@ -22,6 +22,7 @@ using System.Linq;
 using System.Reflection;
 using FluentMigrator.Expressions;
 using FluentMigrator.Infrastructure;
+using FluentMigrator.Model;
 using FluentMigrator.Runner.Initialization;
 using FluentMigrator.Runner.Versioning;
 
@@ -61,7 +62,7 @@ namespace FluentMigrator.Runner
                 Conventions.GetWorkingDirectory = () => runnerContext.WorkingDirectory;
 
             VersionLoader = new VersionLoader(this, _migrationAssembly, Conventions);
-            MigrationLoader = new MigrationLoader(Conventions, _migrationAssembly, runnerContext.Namespace, runnerContext.NestedNamespaces, runnerContext.Tags);
+            MigrationLoader = new MigrationLoader(Conventions, _migrationAssembly, runnerContext.Namespace, runnerContext.NestedNamespaces, runnerContext.Tags, VersionLoader.AppliedVersions);
             ProfileLoader = new ProfileLoader(runnerContext, this, Conventions);
         }
 
@@ -129,7 +130,7 @@ namespace FluentMigrator.Runner
 
         private bool IsMigrationStepNeededForUpMigration(long versionOfMigration, long targetVersion)
         {
-            if (versionOfMigration <= targetVersion && !VersionLoader.VersionInfo.HasAppliedMigration(versionOfMigration))
+            if (versionOfMigration <= targetVersion && !VersionLoader.AppliedVersions.HasAppliedMigration(versionOfMigration))
             {
                 return true;
             }
@@ -163,13 +164,14 @@ namespace FluentMigrator.Runner
 
         private IEnumerable<long> GetDownMigrationsToApply(long targetVersion)
         {
-            return MigrationLoader.Migrations.Keys.Where(x => IsMigrationStepNeededForDownMigration(x, targetVersion)).Reverse();
-        }
+            var migrations = MigrationLoader.Migrations.Where(x => IsMigrationStepNeededForDownMigration(x.Key, targetVersion)).Reverse();
 
+            return migrations.Select(m => m.Key);
+        }
 
         private bool IsMigrationStepNeededForDownMigration(long versionOfMigration, long targetVersion)
         {
-            if (versionOfMigration > targetVersion && VersionLoader.VersionInfo.HasAppliedMigration(versionOfMigration))
+            if (versionOfMigration > targetVersion && VersionLoader.AppliedVersions.HasAppliedMigration(versionOfMigration))
             {
                 return true;
             }
@@ -185,10 +187,10 @@ namespace FluentMigrator.Runner
                 _alreadyOutputPreviewOnlyModeWarning = true;
             }
 
-            if (!VersionLoader.VersionInfo.HasAppliedMigration(version))
+            if (!VersionLoader.AppliedVersions.HasAppliedMigration(version))
             {
                 Up(MigrationLoader.Migrations[version]);
-                VersionLoader.UpdateVersionInfo(version);
+                VersionLoader.UpdateVersionInfo(new VersionInfo() { Version = version, Metadata = MigrationLoader.Migrations[version].VersionMetadata});
             }
         }
 
@@ -219,16 +221,16 @@ namespace FluentMigrator.Runner
         {
             try
             {
-                var migrations = VersionLoader.VersionInfo.AppliedMigrations().Intersect(MigrationLoader.Migrations.Keys);
+                var migrations = VersionLoader.AppliedVersions.AppliedMigrations().Where(m => MigrationLoader.Migrations.Keys.Contains(m.Version));
 
-                foreach (var migrationNumber in migrations.Take(steps))
+                foreach (var migration in migrations.Take(steps))
                 {
-                    ApplyMigrationDown(migrationNumber);
+                    ApplyMigrationDown(migration.Version);
                 }
 
                 VersionLoader.LoadVersionInfo();
 
-                if (!VersionLoader.VersionInfo.AppliedMigrations().Any())
+                if (!VersionLoader.AppliedVersions.AppliedMigrations().Any())
                     VersionLoader.RemoveVersionTable();
 
                 if (useAutomaticTransactionManagement) { Processor.CommitTransaction(); }
@@ -249,20 +251,20 @@ namespace FluentMigrator.Runner
         {
             try
             {
-                var migrations = VersionLoader.VersionInfo.AppliedMigrations().Intersect(MigrationLoader.Migrations.Keys);
+                var migrations = VersionLoader.AppliedVersions.AppliedMigrations().Where(m => MigrationLoader.Migrations.Keys.Contains(m.Version));
 
                 // Get the migrations between current and the to version
-                foreach (var migrationNumber in migrations)
+                foreach (var migration in migrations)
                 {
-                    if (version < migrationNumber)
+                    if (version < migration.Version)
                     {
-                        ApplyMigrationDown(migrationNumber);
+                        ApplyMigrationDown(migration.Version);
                     }
                 }
 
                 VersionLoader.LoadVersionInfo();
 
-                if (version == 0 && !VersionLoader.VersionInfo.AppliedMigrations().Any())
+                if (version == 0 && !VersionLoader.AppliedVersions.AppliedMigrations().Any())
                     VersionLoader.RemoveVersionTable();
 
                 if (useAutomaticTransactionManagement) { Processor.CommitTransaction(); }
@@ -315,6 +317,8 @@ namespace FluentMigrator.Runner
             ExecuteExpressions(context.Expressions);
             _stopWatch.Stop();
 
+            migration.VersionMetadata = context.VersionMetadata;
+            
             _announcer.Say(string.Format("{0} migrated", name));
             _announcer.ElapsedTime(_stopWatch.ElapsedTime());
         }
@@ -418,15 +422,15 @@ namespace FluentMigrator.Runner
 
         public void ListMigrations()
         {
-            IVersionInfo currentVersionInfo = this.VersionLoader.VersionInfo;
-            long currentVersion = currentVersionInfo.Latest();
+            IAppliedVersions currentAppliedVersions = this.VersionLoader.AppliedVersions;
+            var currentVersion = currentAppliedVersions.Latest();
 
             _announcer.Heading("Migrations");
 
             foreach(KeyValuePair<long, IMigration> migration in MigrationLoader.Migrations)
             {
                 string migrationName = GetMigrationName(migration.Key, migration.Value);
-                bool isCurrent = migration.Key == currentVersion;
+                bool isCurrent = migration.Key == currentVersion.Version;
                 string message = string.Format("{0}{1}",
                                                 migrationName,
                                                 isCurrent ? " (current)" : string.Empty);
@@ -440,7 +444,7 @@ namespace FluentMigrator.Runner
 
         private bool MigrationVersionLessThanGreatestAppliedMigration(long version)
         {
-            return !VersionLoader.VersionInfo.HasAppliedMigration(version) && version < VersionLoader.VersionInfo.Latest();
+            return !VersionLoader.AppliedVersions.HasAppliedMigration(version) && version < VersionLoader.AppliedVersions.Latest().Version;
         }
     }
 }

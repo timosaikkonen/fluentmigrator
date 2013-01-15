@@ -19,6 +19,7 @@
 using System.Collections.Generic;
 using FluentMigrator.Expressions;
 using System.Reflection;
+using FluentMigrator.Model;
 
 namespace FluentMigrator.Infrastructure
 {
@@ -28,6 +29,7 @@ namespace FluentMigrator.Infrastructure
         public virtual ICollection<IMigrationExpression> Expressions { get; set; }
         public virtual IQuerySchema QuerySchema { get; set; }
         public virtual Assembly MigrationAssembly { get; set; }
+        public virtual IVersionMetadata VersionMetadata { get; set; }
 
         /// <summary>The arbitrary application context passed to the task runner.</summary>
         public virtual object ApplicationContext { get; set; }

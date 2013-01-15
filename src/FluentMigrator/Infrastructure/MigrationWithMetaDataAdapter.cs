@@ -17,6 +17,7 @@
 #endregion
 
 using System;
+using FluentMigrator.Model;
 
 namespace FluentMigrator.Infrastructure
 {
@@ -26,6 +27,9 @@ namespace FluentMigrator.Infrastructure
         {
             if (migration == null) throw new ArgumentNullException("migration");
             if (metadata == null) throw new ArgumentNullException("metadata");
+
+            VersionMetadata = new VersionMetadata();
+
             Migration = migration;
             MetaData = metadata;
         }
@@ -68,5 +72,7 @@ namespace FluentMigrator.Infrastructure
         {
             Migration.GetDownExpressions(context);
         }
+
+        public IVersionMetadata VersionMetadata { get; set; }
     }
 }

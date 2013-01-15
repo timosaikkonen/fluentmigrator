@@ -24,5 +24,6 @@ namespace FluentMigrator.VersionTableInfo
         string TableName { get; }
         string ColumnName { get; }
         string UniqueIndexName { get; }
+		string MetadataColumnName { get; }
     }
 }

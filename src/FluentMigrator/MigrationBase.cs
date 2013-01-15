@@ -16,6 +16,7 @@
 //
 #endregion
 
+using System.Collections.Generic;
 using FluentMigrator.Builders.Alter;
 using FluentMigrator.Builders.Create;
 using FluentMigrator.Builders.IfDatabase;
@@ -23,6 +24,7 @@ using FluentMigrator.Builders.Insert;
 using FluentMigrator.Builders.Rename;
 using FluentMigrator.Builders.Schema;
 using FluentMigrator.Infrastructure;
+using FluentMigrator.Model;
 
 namespace FluentMigrator
 {
@@ -30,13 +32,19 @@ namespace FluentMigrator
     {
         internal IMigrationContext _context;
         private readonly object _mutex = new object();
-        
+
         /// <summary>The arbitrary application context passed to the task runner.</summary>
         public object ApplicationContext { get; protected set; }
 
         public abstract void Up();
         public abstract void Down();
 
+        public IVersionMetadata VersionMetadata { get; set; }
+
+        public MigrationBase()
+        {
+            VersionMetadata = new VersionMetadata();
+        }
         public void ApplyConventions(IMigrationContext context)
         {
             foreach (var expression in context.Expressions)
@@ -50,6 +58,7 @@ namespace FluentMigrator
                 _context = context;
                 ApplicationContext = context.ApplicationContext;
                 Up();
+                _context.VersionMetadata = VersionMetadata;
                 _context = null;
             }
         }

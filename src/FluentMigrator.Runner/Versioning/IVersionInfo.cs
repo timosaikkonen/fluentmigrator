@@ -1,10 +1,14 @@
-﻿namespace FluentMigrator.Runner.Versioning
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using FluentMigrator.Model;
+
+namespace FluentMigrator.Runner.Versioning
 {
     public interface IVersionInfo
     {
-        void AddAppliedMigration(long migration);
-        System.Collections.Generic.IEnumerable<long> AppliedMigrations();
-        bool HasAppliedMigration(long migration);
-        long Latest();
+        long Version { get; set; }
+        IVersionMetadata Metadata { get; set; }
     }
 }

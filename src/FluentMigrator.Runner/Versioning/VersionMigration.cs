@@ -88,6 +88,32 @@ namespace FluentMigrator.Runner.Versioning
 
     }
 
+    public class VersionMetadataMigration : Migration
+    {
+        private readonly IVersionTableMetaData versionTableMetaData;
+
+        public VersionMetadataMigration(IVersionTableMetaData versionTableMetaData)
+        {
+            this.versionTableMetaData = versionTableMetaData;
+        }
+
+        public override void Up()
+        {
+            Create.Column(versionTableMetaData.MetadataColumnName)
+                .OnTable(versionTableMetaData.TableName)
+                .InSchema(versionTableMetaData.SchemaName)
+                .AsXml()
+                .Nullable();
+        }
+
+        public override void Down()
+        {
+            Delete.Column(versionTableMetaData.MetadataColumnName)
+                .FromTable(versionTableMetaData.TableName)
+                .InSchema(versionTableMetaData.SchemaName);
+        }
+    }
+
     internal static class DateTimeExtensions
     {
         public static string ToISO8601(this DateTime dateTime)

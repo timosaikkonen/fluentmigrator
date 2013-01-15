@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using FluentMigrator.Model;
 using FluentMigrator.Runner;
 using FluentMigrator.Runner.Versioning;
 
@@ -16,8 +17,8 @@ namespace FluentMigrator.Tests.Unit
         {
             this.versionTableMetaData = versionTableMetaData;
             this.Runner = runner;
-            this.VersionInfo = new VersionInfo();
-            this.Versions = new List<long>();
+            this.AppliedVersions = new AppliedVersions();
+            this.Versions = new List<IVersionInfo>();
         }
 
         public bool AlreadyCreatedVersionSchema { get; set; }
@@ -26,7 +27,8 @@ namespace FluentMigrator.Tests.Unit
 
         public void DeleteVersion(long version)
         {
-            this.Versions.Remove(version);
+            var versionToRemove = Versions.First(v => v.Version == version);
+            Versions.Remove(versionToRemove);
         }
 
         public VersionTableInfo.IVersionTableMetaData GetVersionTableMetaData()
@@ -36,11 +38,11 @@ namespace FluentMigrator.Tests.Unit
 
         public void LoadVersionInfo()
         {
-            this.VersionInfo = new VersionInfo();
+            this.AppliedVersions = new AppliedVersions();
 
             foreach (var version in Versions)
             {
-                this.VersionInfo.AddAppliedMigration(version);
+                this.AppliedVersions.AddAppliedMigration(version);
             }
 
             this.DidLoadVersionInfoGetCalled = true;
@@ -57,7 +59,7 @@ namespace FluentMigrator.Tests.Unit
 
         public IMigrationRunner Runner { get; set; }
 
-        public void UpdateVersionInfo(long version)
+        public void UpdateVersionInfo(IVersionInfo version)
         {
             this.Versions.Add(version);
 
@@ -66,13 +68,13 @@ namespace FluentMigrator.Tests.Unit
 
         public bool DidUpdateVersionInfoGetCalled { get; private set; }
 
-        public Runner.Versioning.IVersionInfo VersionInfo { get; set; }
+        public Runner.Versioning.IAppliedVersions AppliedVersions { get; set; }
 
         public VersionTableInfo.IVersionTableMetaData VersionTableMetaData
         {
             get { return versionTableMetaData; }
         }
 
-        public List<long> Versions { get; private set; }
+        public List<IVersionInfo> Versions { get; private set; }
     }
 }

@@ -12,13 +12,13 @@ namespace FluentMigrator.Tests
 
         public static DatabaseServerOptions SqlServer2008 = new DatabaseServerOptions
             {
-                ConnectionString = @"server=.\SQLEXPRESS;uid=;pwd=;Trusted_Connection=yes;database=FluentMigrator",
+                ConnectionString = @"server=.;uid=;pwd=;Trusted_Connection=yes;database=FluentMigrator",
                 IsEnabled = false
             };
 
         public static DatabaseServerOptions SqlServer2012 = new DatabaseServerOptions
         {
-            ConnectionString = @"server=.\SQLEXPRESS;uid=test;pwd=test;Trusted_Connection=yes;database=FluentMigrator",
+            ConnectionString = @"server=.;uid=test;pwd=test;Trusted_Connection=yes;database=FluentMigrator",
             IsEnabled = false
         };
 

@@ -1,8 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text;
+using System.Xml;
+using System.Xml.Serialization;
 using FluentMigrator.Expressions;
 using FluentMigrator.Model;
 using FluentMigrator.Runner.Versioning;
@@ -15,7 +19,8 @@ namespace FluentMigrator.Runner
         private bool _versionSchemaMigrationAlreadyRun;
         private bool _versionMigrationAlreadyRun;
         private bool _versionUniqueMigrationAlreadyRun;
-        private IVersionInfo _versionInfo;
+        private bool _versionMetadataMigrationAlreadyRun;
+        private IAppliedVersions appliedVersions;
         private IMigrationConventions Conventions { get; set; }
         private IMigrationProcessor Processor { get; set; }
         protected Assembly Assembly { get; set; }
@@ -24,6 +29,7 @@ namespace FluentMigrator.Runner
         public VersionSchemaMigration VersionSchemaMigration { get; private set; }
         public IMigration VersionMigration { get; private set; }
         public IMigration VersionUniqueMigration { get; private set; }
+        public IMigration VersionMetadataMigration { get; private set; }
         
         public VersionLoader(IMigrationRunner runner, Assembly assembly, IMigrationConventions conventions)
         {
@@ -36,11 +42,12 @@ namespace FluentMigrator.Runner
             VersionMigration = new VersionMigration(VersionTableMetaData);
             VersionSchemaMigration = new VersionSchemaMigration(VersionTableMetaData);
             VersionUniqueMigration = new VersionUniqueMigration(VersionTableMetaData);
+			VersionMetadataMigration = new VersionMetadataMigration(VersionTableMetaData);
 
             LoadVersionInfo();
         }
 
-        public void UpdateVersionInfo(long version)
+        public void UpdateVersionInfo(IVersionInfo version)
         {
             var dataExpression = new InsertDataExpression();
             dataExpression.Rows.Add(CreateVersionInfoInsertionData(version));
@@ -61,27 +68,37 @@ namespace FluentMigrator.Runner
             return (IVersionTableMetaData)Activator.CreateInstance(matchedType);
         }
 
-        protected virtual InsertionDataDefinition CreateVersionInfoInsertionData(long version)
+        protected virtual InsertionDataDefinition CreateVersionInfoInsertionData(IVersionInfo version)
         {
+            var xmlSerializer = new XmlSerializer(typeof(VersionMetadata));
+
+            var metadata = new XmlDocument();
+            using (var writer = metadata.CreateNavigator().AppendChild())
+            {
+                version.Metadata.WriteXml(writer);
+            }
+            metadata.InsertBefore(metadata.CreateXmlDeclaration("1.0", null, null), metadata.DocumentElement);
+
             return new InsertionDataDefinition
                        {
-                           new KeyValuePair<string, object>(VersionTableMetaData.ColumnName, version),
-                           new KeyValuePair<string, object>("AppliedOn", DateTime.UtcNow)
+                           new KeyValuePair<string, object>(VersionTableMetaData.ColumnName, version.Version),
+                           new KeyValuePair<string, object>("AppliedOn", DateTime.UtcNow),
+                           new KeyValuePair<string, object>(VersionTableMetaData.MetadataColumnName, metadata)
                        };
         }
 
-        public IVersionInfo VersionInfo
+        public IAppliedVersions AppliedVersions
         {
             get
             {
-                return _versionInfo;
+                return appliedVersions;
             }
             set
             {
                 if (value == null)
                     throw new ArgumentException("Cannot set VersionInfo to null");
 
-                _versionInfo = value;
+                appliedVersions = value;
             }
         }
 
@@ -109,6 +126,15 @@ namespace FluentMigrator.Runner
             }
         }
 
+        public bool AlreadyCreatedMetadataColumn
+        {
+            get
+            {
+                return Processor.ColumnExists(VersionTableMetaData.SchemaName, VersionTableMetaData.TableName, VersionTableMetaData.MetadataColumnName);
+            }
+        }
+
+
         public void LoadVersionInfo()
         {
             if (!AlreadyCreatedVersionSchema && !_versionSchemaMigrationAlreadyRun)
@@ -129,7 +155,13 @@ namespace FluentMigrator.Runner
                 _versionUniqueMigrationAlreadyRun = true;
             }
 
-            _versionInfo = new VersionInfo();
+            if (!AlreadyCreatedMetadataColumn && !_versionMetadataMigrationAlreadyRun)
+            {
+                Runner.Up(VersionMetadataMigration);
+                _versionMetadataMigrationAlreadyRun = true;
+            }
+
+            appliedVersions = new AppliedVersions();
 
             if (!AlreadyCreatedVersionTable) return;
 
@@ -137,7 +169,21 @@ namespace FluentMigrator.Runner
             
             foreach (DataRow row in dataSet.Tables[0].Rows)
             {
-                _versionInfo.AddAppliedMigration(long.Parse(row[0].ToString()));
+                var versionInfo = GetVersionInfo(row);
+                appliedVersions.AddAppliedMigration(versionInfo);
+            }
+        }
+
+        public IVersionInfo GetVersionInfo(DataRow row)
+        {
+            using (var stringReader = new StringReader((string)row[VersionTableMetaData.MetadataColumnName]))
+            using (var metadataReader = new XmlTextReader(stringReader))
+            {
+                return new VersionInfo
+                {
+                    Version = (long)row[VersionTableMetaData.ColumnName],
+                    Metadata = row[VersionTableMetaData.MetadataColumnName] == DBNull.Value ? null : new VersionMetadata(metadataReader)
+                };
             }
         }
 

@@ -17,11 +17,13 @@
 #endregion
 
 using System.Collections.Generic;
+using FluentMigrator.Runner.Versioning;
 
 namespace FluentMigrator.Runner
 {
     public interface IMigrationLoader
     {
         SortedList<long, IMigration> Migrations { get; }
+        IAppliedVersions AppliedVersions { get; }
     }
 }

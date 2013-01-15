@@ -1,9 +1,21 @@
-﻿using FluentMigrator.Runner.Generators.Generic;
+﻿using System.Text;
+using System.Xml;
+using FluentMigrator.Runner.Generators.Generic;
 
 namespace FluentMigrator.Runner.Generators.SqlServer
 {
     public class SqlServerQuoter : GenericQuoter
     {
+        public override string QuoteValue(object value)
+        {
+            var document = value as XmlDocument;
+            if (document != null)
+            {
+                return "N" + ValueQuote + document.OuterXml + ValueQuote;
+            }
+            return base.QuoteValue(value);
+        }
+
         public override string OpenQuote { get { return "["; } }
 
         public override string CloseQuote { get { return "]"; } }

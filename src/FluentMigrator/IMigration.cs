@@ -17,6 +17,7 @@
 #endregion
 
 using FluentMigrator.Infrastructure;
+using FluentMigrator.Model;
 
 namespace FluentMigrator
 {
@@ -27,5 +28,7 @@ namespace FluentMigrator
 
         void GetUpExpressions(IMigrationContext context);
         void GetDownExpressions(IMigrationContext context);
+
+        IVersionMetadata VersionMetadata { get; set; }
     }
 }

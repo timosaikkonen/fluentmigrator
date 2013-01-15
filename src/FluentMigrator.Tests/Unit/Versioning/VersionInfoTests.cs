@@ -23,40 +23,49 @@ using NUnit.Should;
 
 namespace FluentMigrator.Tests.Unit.Versioning
 {
-	[TestFixture]
-	public class VersionInfoTests
-	{
-		private VersionInfo _versionInfo;
+    [TestFixture]
+    public class VersionInfoTests
+    {
+        private AppliedVersions appliedVersions;
 
-		[SetUp]
-		public void SetUp()
-		{
-			_versionInfo = new VersionInfo();			
-		}
+        [SetUp]
+        public void SetUp()
+        {
+            appliedVersions = new AppliedVersions();
+        }
 
-		[Test]
-		public void CanAddAppliedMigration()
-		{
-			_versionInfo.AddAppliedMigration(200909060953);
-			_versionInfo.HasAppliedMigration(200909060953).ShouldBeTrue();
-		}
+        [Test]
+        public void CanAddAppliedMigration()
+        {
+            appliedVersions.AddAppliedMigration(new VersionInfo() { Version = 200909060953 });
+            appliedVersions.HasAppliedMigration(200909060953).ShouldBeTrue();
+        }
 
-		[Test]
-		public void CanGetLatestMigration()
-		{
-			_versionInfo.AddAppliedMigration(200909060953);
-			_versionInfo.AddAppliedMigration(200909060935);
-			_versionInfo.Latest().ShouldBe(200909060953);
-		}
+        [Test]
+        public void CanGetLatestMigration()
+        {
+            appliedVersions.AddAppliedMigration(new VersionInfo() { Version = 200909060953 });
+            appliedVersions.AddAppliedMigration(new VersionInfo() { Version = 200909060935 });
+            appliedVersions.Latest().Version.ShouldBe(200909060953);
+        }
 
-		[Test]
-		public void CanGetAppliedMigrationsLatestFirst()
-		{
-			_versionInfo.AddAppliedMigration(200909060953);
-			_versionInfo.AddAppliedMigration(200909060935);
-			var applied = _versionInfo.AppliedMigrations().ToList();
-			applied[0].ShouldBe(200909060953);
-			applied[1].ShouldBe(200909060935);
-		}
-	}
+        [Test]
+        public void CanGetAppliedMigrationsLatestFirst()
+        {
+            appliedVersions.AddAppliedMigration(new VersionInfo() { Version = 200909060953 });
+            appliedVersions.AddAppliedMigration(new VersionInfo() { Version = 200909060935 });
+            var applied = appliedVersions.AppliedMigrations().ToList();
+            applied[0].Version.ShouldBe(200909060953);
+            applied[1].Version.ShouldBe(200909060935);
+        }
+
+        [Test]
+        public void CanGetVersionMetadata()
+        {
+            var version = new VersionInfo { Version = 201301150001 };
+            version.Metadata["Id"] = 1;
+            appliedVersions.AddAppliedMigration(version);
+            appliedVersions.Latest().Metadata["Id"].ShouldBe(1);
+        }
+    }
 }

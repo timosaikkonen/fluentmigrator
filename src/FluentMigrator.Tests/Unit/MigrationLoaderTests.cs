@@ -21,6 +21,7 @@ using System.Reflection;
 using System.Collections.Generic;
 using FluentMigrator.Infrastructure;
 using FluentMigrator.Runner;
+using FluentMigrator.Runner.Versioning;
 using FluentMigrator.Tests.Integration.Migrations;
 using FluentMigrator.Tests.Unit.TaggingTestFakes;
 using Moq;
@@ -38,8 +39,8 @@ namespace FluentMigrator.Tests.Unit
         {
             var conventions = new MigrationConventions();
             var asm = Assembly.GetExecutingAssembly();
-            var loader = new MigrationLoader( conventions, asm, "FluentMigrator.Tests.Integration.Migrations.Interleaved.Pass1", null);
-            
+            var loader = new MigrationLoader(conventions, asm, "FluentMigrator.Tests.Integration.Migrations.Interleaved.Pass1", null, new AppliedVersions());
+
             SortedList<long, IMigration> migrationList = loader.Migrations;
 
             //if this works, there will be at least one migration class because i've included on in this code file
@@ -56,7 +57,7 @@ namespace FluentMigrator.Tests.Unit
         {
             var conventions = new MigrationConventions();
             var asm = Assembly.GetExecutingAssembly();
-            var loader = new MigrationLoader(conventions, asm, "FluentMigrator.Tests.Integration.Migrations.Interleaved.Pass1", null);
+            var loader = new MigrationLoader(conventions, asm, "FluentMigrator.Tests.Integration.Migrations.Interleaved.Pass1", null, new AppliedVersions());
 
             var migrationList = loader.FindMigrations();
             migrationList.Select(x => x.Type).ShouldNotContain(typeof(VersionedMigration));
@@ -68,7 +69,7 @@ namespace FluentMigrator.Tests.Unit
         {
             var conventions = new MigrationConventions();
             var asm = Assembly.GetExecutingAssembly();
-            var loader = new MigrationLoader(conventions, asm, "FluentMigrator.Tests.Integration.Migrations.Nested", null);
+            var loader = new MigrationLoader(conventions, asm, "FluentMigrator.Tests.Integration.Migrations.Nested", null, new AppliedVersions());
 
             loader.LoadNestedNamespaces.ShouldBe(false);
         }
@@ -78,7 +79,7 @@ namespace FluentMigrator.Tests.Unit
         {
             var conventions = new MigrationConventions();
             var asm = Assembly.GetExecutingAssembly();
-            var loader = new MigrationLoader(conventions, asm, "FluentMigrator.Tests.Integration.Migrations.Nested", true, null);
+            var loader = new MigrationLoader(conventions, asm, "FluentMigrator.Tests.Integration.Migrations.Nested", true, null, new AppliedVersions());
 
             List<Type> expected = new List<Type>
                                       {
@@ -99,7 +100,7 @@ namespace FluentMigrator.Tests.Unit
         {
             var conventions = new MigrationConventions();
             var asm = Assembly.GetExecutingAssembly();
-            var loader = new MigrationLoader(conventions, asm, "FluentMigrator.Tests.Integration.Migrations.Nested", false, null);
+            var loader = new MigrationLoader(conventions, asm, "FluentMigrator.Tests.Integration.Migrations.Nested", false, null, new AppliedVersions());
 
             List<Type> expected = new List<Type>
                                       {
@@ -125,7 +126,7 @@ namespace FluentMigrator.Tests.Unit
             conventionsMock.SetupGet(m => m.TypeHasTags).Returns(t => migrationType == t);
             conventionsMock.SetupGet(m => m.TypeHasMatchingTags).Returns((type, tags) => (migrationType == type && tagsToMatch == tags));
 
-            var loader = new MigrationLoader(conventionsMock.Object, asm, migrationType.Namespace, tagsToMatch);
+            var loader = new MigrationLoader(conventionsMock.Object, asm, migrationType.Namespace, tagsToMatch, new AppliedVersions());
 
             var expected = new List<Type> { typeof(UntaggedMigration), migrationType };
 
@@ -147,7 +148,7 @@ namespace FluentMigrator.Tests.Unit
             conventionsMock.SetupGet(m => m.TypeHasTags).Returns(t => migrationType == t);
             conventionsMock.SetupGet(m => m.TypeHasMatchingTags).Returns((type, tags) => false);
 
-            var loader = new MigrationLoader(conventionsMock.Object, asm, migrationType.Namespace, tagsToMatch);
+            var loader = new MigrationLoader(conventionsMock.Object, asm, migrationType.Namespace, tagsToMatch, new AppliedVersions());
 
             var expected = new List<Type> { typeof(UntaggedMigration) };
 
@@ -156,7 +157,7 @@ namespace FluentMigrator.Tests.Unit
             CollectionAssert.AreEquivalent(expected, actual);
         }
     }
-    
+
     namespace TaggingTestFakes
     {
         [Tags("UK", "IE", "QA", "Production")]
@@ -166,7 +167,7 @@ namespace FluentMigrator.Tests.Unit
             public override void Up() { }
 
             public override void Down() { }
-        }    
+        }
 
         [Migration(567)]
         public class UntaggedMigration : Migration

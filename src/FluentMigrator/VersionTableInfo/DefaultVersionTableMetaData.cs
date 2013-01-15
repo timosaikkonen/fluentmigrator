@@ -39,5 +39,10 @@ namespace FluentMigrator.VersionTableInfo
         {
             get { return "UC_Version"; }
         }
+
+        public string MetadataColumnName
+        {
+            get { return "Metadata"; }
+        }
     }
 }

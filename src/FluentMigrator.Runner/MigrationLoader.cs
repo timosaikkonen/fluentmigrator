@@ -21,6 +21,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using FluentMigrator.Infrastructure;
 using System.Linq;
+using FluentMigrator.Runner.Versioning;
 
 namespace FluentMigrator.Runner
 {
@@ -32,23 +33,26 @@ namespace FluentMigrator.Runner
         public bool LoadNestedNamespaces { get; private set; }
         public SortedList<long, IMigration> Migrations { get; private set; }
         public IEnumerable<string> TagsToMatch { get; private set; }
+        public IAppliedVersions AppliedVersions { get; private set; }
 
-        public MigrationLoader(IMigrationConventions conventions, Assembly assembly, string @namespace, IEnumerable<string> tagsToMatch)
+        public MigrationLoader(IMigrationConventions conventions, Assembly assembly, string @namespace, IEnumerable<string> tagsToMatch, IAppliedVersions appliedVersions)
         {
             Conventions = conventions;
             Assembly = assembly;
             Namespace = @namespace;
+            AppliedVersions = appliedVersions;
             TagsToMatch = tagsToMatch ?? new string[] { };
 
             Initialize();
         }
         
-        public MigrationLoader(IMigrationConventions conventions, Assembly assembly, string @namespace, bool loadNestedNamespaces, IEnumerable<string> tagsToMatch)
+        public MigrationLoader(IMigrationConventions conventions, Assembly assembly, string @namespace, bool loadNestedNamespaces, IEnumerable<string> tagsToMatch, IAppliedVersions appliedVersions)
         {
             Conventions = conventions;
             Assembly = assembly;
             Namespace = @namespace;
             LoadNestedNamespaces = loadNestedNamespaces;
+            AppliedVersions = appliedVersions;
             TagsToMatch = tagsToMatch ?? new string[] { };
 
             Initialize();
@@ -69,6 +73,10 @@ namespace FluentMigrator.Runner
                     throw new Exception(String.Format("Duplicate migration version {0}.", migrationMetadata.Version));
 
                 var migration = (IMigration)migrationMetadata.Type.Assembly.CreateInstance(migrationMetadata.Type.FullName);
+                if (AppliedVersions.HasAppliedMigration(migrationMetadata.Version))
+                {
+                    migration.VersionMetadata = AppliedVersions.AppliedMigrations().First(m => m.Version == migrationMetadata.Version).Metadata;
+                }
                 Migrations.Add(migrationMetadata.Version, new MigrationWithMetaDataAdapter(migration, migrationMetadata));
             }
         }
